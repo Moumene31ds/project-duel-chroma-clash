@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="duel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF0055"/>
+      <stop offset="0.5" stop-color="#7928CA"/>
+      <stop offset="1" stop-color="#0084FF"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#08090C"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#duel)" opacity="0.25"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="url(#duel)" stroke-width="3"/>
+  <path d="M35 8 L22 36 h9 L27 56 L44 28 h-10 Z" fill="#fff"/>
+  <path d="M35 8 L22 36 h9 L27 56 L44 28 h-10 Z" fill="url(#duel)" opacity="0.55"/>
+  <circle cx="14" cy="14" r="3" fill="#FF0055"/>
+  <circle cx="50" cy="50" r="3" fill="#0084FF"/>
+</svg>

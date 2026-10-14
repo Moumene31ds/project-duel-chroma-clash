@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>PROJECT DUEL: Chroma Clash (1v1 Local Multiplayer)</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F8FAFC">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#08090C">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="description" content="20 legendary 1v1 face-to-face minigames, engineered for portrait phones">
+  <link rel="stylesheet" href="/styles/main.css">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800;900&family=Inter:wght@400;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Ambient Desktop Wrapper (Hidden on real phones) -->
+  <div class="desktop-backdrop">
+    <div class="mobile-exclusive-badge">
+      <span class="badge-dot"></span>
+      <span>📱 MOBILE EXCLUSIVE • مصممة حصرياً لشاشات الهواتف</span>
+    </div>
+  </div>
+
+  <!-- Orientation Blocker (Activates on horizontal mobile) -->
+  <div id="orientation-blocker" class="orientation-blocker">
+    <div class="orient-content">
+      <div class="phone-rotate-icon">📱 ↺</div>
+      <h2>الرجاء تدوير الهاتف</h2>
+      <p>Rotate device to Portrait mode</p>
+      <span class="orient-sub">هذه اللعبة صممت خصيصاً للوضع العمودي للمواجهة وجهاً لوجه 1v1</span>
+    </div>
+  </div>
+
+  <!-- Flagship Smartphone Chassis -->
+  <div class="phone-chassis">
+    <!-- Phone Hardware Accents -->
+    <div class="phone-bezel-glow"></div>
+    <div class="phone-island">
+      <div class="island-camera"></div>
+      <div class="island-sensor"></div>
+    </div>
+
+    <!-- Active Mobile Viewport Screen -->
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+      <div id="ui-layer"></div>
+    </div>
+
+    <div class="phone-home-bar"></div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
