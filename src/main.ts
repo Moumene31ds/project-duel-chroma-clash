@@ -71,13 +71,19 @@ class GameEngine {
   // the Android back button navigates inside the game instead of exiting.
   private histDepth = 0;
   private suppressPop = false;
+  private isPushingHist = false;
 
   private pushHist() {
-    this.histDepth++;
+    if (this.isPushingHist) return;
+    this.isPushingHist = true;
     try {
-      history.pushState({ duelDepth: this.histDepth }, '');
+      this.histDepth++;
+      const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+      history.pushState({ duelDepth: this.histDepth }, '', currentUrl);
     } catch {
       // non-browser / restricted context
+    } finally {
+      this.isPushingHist = false;
     }
   }
 
@@ -340,7 +346,9 @@ class GameEngine {
       this.startMinigame(id);
     };
 
-    this.ui.onModalOpened = () => this.pushHist();
+    this.ui.onModalOpened = () => {
+      queueMicrotask(() => this.pushHist());
+    };
     this.ui.onModalClosed = (followedByPush) => {
       if (followedByPush) {
         // A pushState lands immediately after: skip history.back() (async and

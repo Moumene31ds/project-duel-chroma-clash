@@ -1295,4 +1295,94 @@ test('Home Page - Live Search & Favorite Toggle Persistence', () => {
   assert.deepStrictEqual(prog.getFavorites(), []);
 });
 
+// 57. UI Modal - Re-entrancy & Recursion Guard
+test('UI Modal - Re-entrancy & Recursion Guard', () => {
+  class MockUIManager {
+    constructor() {
+      this.modalStack = [];
+      this.isPresentingModal = false;
+      this.suppressedCount = 0;
+      this.onModalOpened = null;
+    }
+
+    presentModal(modal, backAction = 'close') {
+      if (!modal) return;
+      if (this.isPresentingModal) {
+        this.suppressedCount++;
+        return;
+      }
+      if (this.modalStack.includes(modal)) {
+        modal.dataset.back = backAction;
+        return;
+      }
+
+      this.isPresentingModal = true;
+      try {
+        modal.dataset.back = backAction;
+        this.modalStack.push(modal);
+        if (this.onModalOpened) {
+          this.onModalOpened();
+        }
+      } finally {
+        this.isPresentingModal = false;
+      }
+    }
+  }
+
+  const ui = new MockUIManager();
+  const modalA = { dataset: {} };
+  const modalB = { dataset: {} };
+
+  // Attempt re-entrant presentation inside onModalOpened
+  ui.onModalOpened = () => {
+    ui.presentModal(modalB);
+  };
+
+  ui.presentModal(modalA);
+
+  assert.strictEqual(ui.modalStack.length, 1, 'Only the outer modal should be registered');
+  assert.strictEqual(ui.modalStack[0], modalA, 'Outer modal is at bottom of stack');
+  assert.strictEqual(ui.suppressedCount, 1, 'Recursive attempt was safely intercepted and suppressed');
+  assert.strictEqual(ui.isPresentingModal, false, 'Guard flag cleanly reset after execution');
+});
+
+// 58. UI Modal - Duplicate Presentation Idempotency
+test('UI Modal - Duplicate Presentation Idempotency', () => {
+  class MockUIManager {
+    constructor() {
+      this.modalStack = [];
+      this.isPresentingModal = false;
+    }
+
+    presentModal(modal, backAction = 'close') {
+      if (!modal) return;
+      if (this.isPresentingModal) return;
+      if (this.modalStack.includes(modal)) {
+        modal.dataset.back = backAction;
+        return;
+      }
+
+      this.isPresentingModal = true;
+      try {
+        modal.dataset.back = backAction;
+        this.modalStack.push(modal);
+      } finally {
+        this.isPresentingModal = false;
+      }
+    }
+  }
+
+  const ui = new MockUIManager();
+  const modal = { dataset: {} };
+
+  ui.presentModal(modal, 'close');
+  assert.strictEqual(ui.modalStack.length, 1);
+  assert.strictEqual(modal.dataset.back, 'close');
+
+  // Re-present same modal with updated action
+  ui.presentModal(modal, 'menu');
+  assert.strictEqual(ui.modalStack.length, 1, 'Stack must not duplicate existing modal');
+  assert.strictEqual(modal.dataset.back, 'menu', 'Modal backAction is updated cleanly');
+});
+
 

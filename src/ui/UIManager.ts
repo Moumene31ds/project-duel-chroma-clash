@@ -43,6 +43,8 @@ export class UIManager {
   public currentScreen: 'menu' | 'match' | 'party' | 'tournament' = 'menu';
   // Stack of open modal overlays (top = last). Back closes from the top.
   public modalStack: HTMLElement[] = [];
+  private isPresentingModal = false;
+  private isDismissingModal = false;
 
   private previewAnimFrameId: number | null = null;
   private previewTime: number = 0;
@@ -909,10 +911,35 @@ export class UIManager {
   // backAction decides what the system back button does on this modal:
   // 'close' removes it, 'menu' quits to the menu, 'resume' unpauses.
   public presentModal(modal: HTMLElement, backAction: 'close' | 'menu' | 'resume' = 'close'): void {
-    modal.dataset.back = backAction;
-    this.root.appendChild(modal); // NOTE: direct DOM append (do NOT route through presentModal)
-    this.modalStack.push(modal);
-    if (this.onModalOpened) this.onModalOpened();
+    if (!modal) return;
+
+    // 1. Guard against recursive invocation / call stack overflow
+    if (this.isPresentingModal) {
+      console.warn('[UIManager] Suppressed recursive presentModal call');
+      return;
+    }
+
+    // 2. Prevent duplicate presentation of the exact same modal instance
+    if (this.modalStack.includes(modal) || modal.parentElement === this.root) {
+      modal.dataset.back = backAction;
+      return;
+    }
+
+    this.isPresentingModal = true;
+    try {
+      modal.dataset.back = backAction;
+      this.root.appendChild(modal); // NOTE: direct DOM append (do NOT route through presentModal)
+      this.modalStack.push(modal);
+      if (this.onModalOpened) {
+        try {
+          this.onModalOpened();
+        } catch (err) {
+          console.warn('[UIManager] Error in onModalOpened callback:', err);
+        }
+      }
+    } finally {
+      this.isPresentingModal = false;
+    }
   }
 
   // Button-driven close: removes the modal and consumes its history entry.
@@ -922,10 +949,30 @@ export class UIManager {
   // Dropping just forgets the counter — the stale forward entry is discarded
   // by the upcoming pushState and the back handler is state-based anyway.
   public dismissModal(modal: HTMLElement, followedByPush = false): void {
-    const idx = this.modalStack.indexOf(modal);
-    if (idx !== -1) this.modalStack.splice(idx, 1);
-    modal.remove(); // NOTE: direct DOM remove (do NOT route through dismissModal)
-    if (this.onModalClosed) this.onModalClosed(followedByPush);
+    if (!modal) return;
+
+    if (this.isDismissingModal) {
+      const idx = this.modalStack.indexOf(modal);
+      if (idx !== -1) this.modalStack.splice(idx, 1);
+      if (modal.parentElement) modal.remove();
+      return;
+    }
+
+    this.isDismissingModal = true;
+    try {
+      const idx = this.modalStack.indexOf(modal);
+      if (idx !== -1) this.modalStack.splice(idx, 1);
+      if (modal.parentElement) modal.remove(); // NOTE: direct DOM remove (do NOT route through dismissModal)
+      if (this.onModalClosed) {
+        try {
+          this.onModalClosed(followedByPush);
+        } catch (err) {
+          console.warn('[UIManager] Error in onModalClosed callback:', err);
+        }
+      }
+    } finally {
+      this.isDismissingModal = false;
+    }
   }
 
   // History-driven close (system back button): the entry is already popped,
