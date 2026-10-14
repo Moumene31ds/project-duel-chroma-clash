@@ -38,6 +38,16 @@ import { AnalyticsManager } from './core/AnalyticsManager';
 import { PerformanceManager } from './core/PerformanceManager';
 import { AccessibilityManager } from './core/AccessibilityManager';
 import { AdManager } from './core/AdManager';
+import { inject as injectVercelAnalytics } from '@vercel/analytics';
+import { injectSpeedInsights } from '@vercel/speed-insights';
+
+// Initialize Vercel Observability & Real-Time Performance Telemetry
+try {
+  injectVercelAnalytics();
+  injectSpeedInsights();
+} catch {
+  // Silent fallback when running offline or non-Vercel hosts
+}
 
 class GameEngine {
   private canvas: HTMLCanvasElement;
