@@ -211,6 +211,7 @@ export interface RivalryRecord {
   audioSettings: AudioSettings;
   chassisMode: ChassisMode;
   gauntletHighScore: number;
+  favoriteMinigames?: MinigameId[];
 }
 
 export interface TournamentMatch {

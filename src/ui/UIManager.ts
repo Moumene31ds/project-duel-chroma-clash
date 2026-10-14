@@ -47,6 +47,10 @@ export class UIManager {
   private previewAnimFrameId: number | null = null;
   private previewTime: number = 0;
 
+  private activeCategory: 'all' | 'trending' | 'action_duel' | 'speed_reflex' | 'memory_puzzle' | 'favorites' = 'all';
+  private searchQuery: string = '';
+  private sortMode: 'default' | 'popular' | 'newest' = 'default';
+
   private readonly ALL_MINIGAMES: MinigameId[] = [
     'cyber_hoops',
     'laser_pinball',
@@ -102,6 +106,8 @@ export class UIManager {
     this.loc.setLanguage(this.progression.getLanguage());
   }
 
+  private spotlightMinigameId: MinigameId = 'neon_blade';
+
   private gameCardHtml(id: MinigameId, idx: number, record: ReturnType<ProgressionManager['getRecord']>): string {
     const meta = this.loc.getMinigameText(id);
     const stats = record.minigameStats[id] || { p1Wins: 0, p2Wins: 0 };
@@ -109,6 +115,7 @@ export class UIManager {
     const category = isAction ? 'action' : 'memory';
     const icon = this.GAME_ICONS[id] || '🎮';
     const isNew = ['cyber_slicer', 'synthwave_rhythm', 'gravity_runner', 'neon_blade', 'cyber_bomb'].includes(id);
+    const isFav = this.progression.isFavorite(id);
     const num = String(idx + 1).padStart(2, '0');
 
     return `
@@ -129,9 +136,181 @@ export class UIManager {
             <span class="card-score">P1 ${stats.p1Wins}–${stats.p2Wins} P2</span>
           </div>
         </div>
-        <button class="btn-play-card" aria-label="${this.loc.t('play_now')} ${meta.title}" tabindex="-1">▶</button>
+        <div class="card-actions-col">
+          <button class="btn-fav-star ${isFav ? 'active' : ''}" data-fav-id="${id}" aria-label="Favorite" title="Favorite">
+            ${isFav ? '⭐' : '☆'}
+          </button>
+          <button class="btn-play-card" aria-label="${this.loc.t('play_now')} ${meta.title}" tabindex="-1">▶</button>
+        </div>
       </div>
     `;
+  }
+
+  public getFilteredAndSortedGames(): MinigameId[] {
+    const record = this.progression.getRecord();
+    const query = this.searchQuery.trim().toLowerCase();
+
+    const actionDuels: MinigameId[] = [
+      'neon_blade', 'physics_sumo', 'tactical_tanks', 'counter_dash',
+      'cyber_hockey', 'cyber_slicer', 'astro_blast'
+    ];
+    const speedReflex: MinigameId[] = [
+      'cyber_bomb', 'laser_drift', 'neon_orbit', 'cyber_hoops',
+      'laser_pinball', 'neon_volley', 'quantum_tug', 'synthwave_rhythm', 'gravity_runner'
+    ];
+    const memoryPuzzle: MinigameId[] = [
+      'chroma_pairs', 'memory_matrix', 'cyber_simon', 'chroma_reaction'
+    ];
+
+    let list: MinigameId[] = [...this.ALL_MINIGAMES];
+
+    // 1. Category Filter
+    if (this.activeCategory === 'trending') {
+      list.sort((a, b) => {
+        const aPlays = (record.minigameStats[a]?.p1Wins || 0) + (record.minigameStats[a]?.p2Wins || 0);
+        const bPlays = (record.minigameStats[b]?.p1Wins || 0) + (record.minigameStats[b]?.p2Wins || 0);
+        return bPlays - aPlays;
+      });
+      list = list.slice(0, 8);
+    } else if (this.activeCategory === 'action_duel') {
+      list = list.filter(id => actionDuels.includes(id));
+    } else if (this.activeCategory === 'speed_reflex') {
+      list = list.filter(id => speedReflex.includes(id));
+    } else if (this.activeCategory === 'memory_puzzle') {
+      list = list.filter(id => memoryPuzzle.includes(id));
+    } else if (this.activeCategory === 'favorites') {
+      const favs = this.progression.getFavorites();
+      list = list.filter(id => favs.includes(id));
+    }
+
+    // 2. Search Filter
+    if (query) {
+      list = list.filter(id => {
+        const meta = this.loc.getMinigameText(id);
+        const title = meta.title.toLowerCase();
+        const sub = meta.subtitle.toLowerCase();
+        const badge = meta.badge.toLowerCase();
+        const rawId = id.replace('_', ' ').toLowerCase();
+        return title.includes(query) || sub.includes(query) || badge.includes(query) || rawId.includes(query);
+      });
+    }
+
+    // 3. Sorting
+    if (this.sortMode === 'popular') {
+      list.sort((a, b) => {
+        const aPlays = (record.minigameStats[a]?.p1Wins || 0) + (record.minigameStats[a]?.p2Wins || 0);
+        const bPlays = (record.minigameStats[b]?.p1Wins || 0) + (record.minigameStats[b]?.p2Wins || 0);
+        return bPlays - aPlays;
+      });
+    } else if (this.sortMode === 'newest') {
+      const newestOrder: MinigameId[] = [
+        'cyber_bomb', 'neon_blade', 'gravity_runner', 'synthwave_rhythm', 'cyber_slicer'
+      ];
+      list.sort((a, b) => {
+        const aIdx = newestOrder.indexOf(a);
+        const bIdx = newestOrder.indexOf(b);
+        if (aIdx >= 0 && bIdx >= 0) return aIdx - bIdx;
+        if (aIdx >= 0) return -1;
+        if (bIdx >= 0) return 1;
+        return 0;
+      });
+    }
+
+    return list;
+  }
+
+  private refreshGameGrid() {
+    const grid = this.root.querySelector('#main-minigame-grid');
+    const countEl = this.root.querySelector('#m-games-count');
+    if (!grid) return;
+
+    this.stopMicroPreviews();
+    const filteredGames = this.getFilteredAndSortedGames();
+    const record = this.progression.getRecord();
+    const currentLang = this.loc.getLanguage();
+
+    if (countEl) {
+      countEl.textContent = `${filteredGames.length} ${currentLang === 'ar' ? 'لعبة متاحة' : 'GAMES READY'}`;
+    }
+
+    if (filteredGames.length === 0) {
+      grid.innerHTML = `
+        <div class="no-games-card">
+          <div class="no-games-icon">🔍</div>
+          <div class="no-games-title">${this.loc.t('search_no_results')}</div>
+          <button class="no-games-btn" id="btn-empty-shuffle">🎲 ${this.loc.t('random_pick')}</button>
+        </div>
+      `;
+      grid.querySelector('#btn-empty-shuffle')?.addEventListener('click', () => {
+        this.executeQuickShuffle();
+      });
+      return;
+    }
+
+    grid.innerHTML = filteredGames.map((id, idx) => this.gameCardHtml(id, idx, record)).join('');
+    this.attachCardEvents(grid);
+    this.initMicroPreviews();
+  }
+
+  private attachCardEvents(container: Element) {
+    container.querySelectorAll('.game-card').forEach((card) => {
+      const el = card as HTMLElement;
+      this.attach3DCardTilt(el);
+
+      const id = el.getAttribute('data-id') as MinigameId;
+
+      const select = (e: Event) => {
+        if ((e.target as HTMLElement).closest('.btn-fav-star')) return;
+        this.audio.playPuckBounce(1.4);
+        this.stopMicroPreviews();
+        if (this.onSelectMinigame) this.onSelectMinigame(id);
+      };
+
+      el.addEventListener('click', select);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          select(e);
+        }
+      });
+
+      const favBtn = el.querySelector('.btn-fav-star');
+      favBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isNowFav = this.progression.toggleFavorite(id);
+        favBtn.textContent = isNowFav ? '⭐' : '☆';
+        favBtn.classList.toggle('active', isNowFav);
+        this.audio.playPowerUp();
+        if (this.activeCategory === 'favorites') {
+          this.refreshGameGrid();
+        }
+      });
+    });
+  }
+
+  private openCyberDrawer() {
+    const backdrop = this.root.querySelector('#cyber-drawer-backdrop') as HTMLElement | null;
+    const sheet = this.root.querySelector('#cyber-drawer-sheet') as HTMLElement | null;
+    if (backdrop && sheet) {
+      backdrop.style.display = 'flex';
+      requestAnimationFrame(() => {
+        backdrop.classList.add('open');
+        sheet.classList.add('open');
+      });
+      this.audio.playPuckBounce(1.2);
+    }
+  }
+
+  private closeCyberDrawer() {
+    const backdrop = this.root.querySelector('#cyber-drawer-backdrop') as HTMLElement | null;
+    const sheet = this.root.querySelector('#cyber-drawer-sheet') as HTMLElement | null;
+    if (backdrop && sheet) {
+      backdrop.classList.remove('open');
+      sheet.classList.remove('open');
+      setTimeout(() => {
+        backdrop.style.display = 'none';
+      }, 250);
+    }
   }
 
   public showMainMenu() {
@@ -143,11 +322,10 @@ export class UIManager {
     const currentMode = this.progression.getGameMode();
     const aiDiff = this.progression.getAIDifficulty();
     const currentLang = this.loc.getLanguage();
-
-    const isActionGame = (id: MinigameId) => ['cyber_hoops', 'laser_pinball', 'neon_volley', 'quantum_tug', 'astro_blast', 'cyber_hockey', 'physics_sumo', 'tactical_tanks', 'counter_dash', 'laser_drift', 'neon_orbit', 'cyber_slicer', 'synthwave_rhythm', 'gravity_runner', 'neon_blade', 'cyber_bomb'].includes(id);
-    const actionGames = this.ALL_MINIGAMES.filter(isActionGame);
-    const memoryGames = this.ALL_MINIGAMES.filter(id => !isActionGame(id));
     const p2Name = currentMode === 'vs_ai' ? this.loc.t('ai_label') : this.loc.t('p2_label');
+
+    const spotlightMeta = this.loc.getMinigameText(this.spotlightMinigameId);
+    const filteredGames = this.getFilteredAndSortedGames();
 
     this.root.innerHTML = `
       <div class="ui-overlay menu-screen">
@@ -192,60 +370,169 @@ export class UIManager {
           </div>
         ` : ''}
 
-        <div class="shuffle-container">
+        <!-- Hero Spotlight Card (Game of the Day) -->
+        <div class="m-hero-spotlight" id="hero-spotlight-card" data-id="${this.spotlightMinigameId}">
+          <div class="spotlight-glow"></div>
+          <div class="spotlight-badge-row">
+            <span class="spotlight-tag">🌟 ${this.loc.t('spotlight_title')}</span>
+            <span class="spotlight-status">LIVE ⚡</span>
+          </div>
+          <div class="spotlight-body">
+            <div class="spotlight-thumb">
+              <canvas class="mini-canvas" id="canvas-mini-spotlight" width="160" height="160"></canvas>
+              <span class="spotlight-icon">${this.GAME_ICONS[this.spotlightMinigameId]}</span>
+            </div>
+            <div class="spotlight-info">
+              <h3 class="spotlight-title">${spotlightMeta.title}</h3>
+              <p class="spotlight-sub">${spotlightMeta.subtitle}</p>
+              <div class="spotlight-badge">${spotlightMeta.badge}</div>
+            </div>
+          </div>
+          <button class="spotlight-play-btn" id="btn-spotlight-play">
+            <span>⚡ ${this.loc.t('spotlight_play')}</span>
+          </button>
+        </div>
+
+        <!-- Quick Shuffle & Party Hub Row -->
+        <div class="m-quick-actions-row">
           <button class="btn-shuffle-roulette" id="btn-quick-shuffle">
             <span>🎲</span>
             <span>${this.loc.t('quick_shuffle')}</span>
           </button>
-        </div>
-
-        <!-- Slim party entry -->
-        <div class="m-party" id="hero-party-banner">
-          <span class="m-party-icon">👑</span>
-          <div class="m-party-txt">
-            <div class="m-party-title">${this.loc.t('party_hero_title')}</div>
-            <div class="m-party-sub">${this.loc.t('party_hero_sub')}</div>
+          <div class="m-party-slim" id="hero-party-banner">
+            <span class="m-party-icon">👑</span>
+            <div class="m-party-txt">
+              <div class="m-party-title">${this.loc.t('party_hero_title')}</div>
+            </div>
+            <button class="m-party-go" id="btn-hero-party">▶</button>
           </div>
-          <button class="m-party-go" id="btn-hero-party">▶</button>
         </div>
 
-        <!-- Grouped sections replace the tab filter: everything visible -->
-        <h2 class="m-sec"><span>⚔️ ${this.loc.t('cat_action')}</span><em>${actionGames.length}</em></h2>
-        <div class="minigame-grid">
-          ${actionGames.map(id => this.gameCardHtml(id, this.ALL_MINIGAMES.indexOf(id), record)).join('')}
+        <!-- Instant Search Box -->
+        <div class="m-search-bar-wrap">
+          <div class="cyber-search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="cyber-search-input" id="menu-search-input" placeholder="${this.loc.t('search_placeholder')}" value="${this.searchQuery}" autocomplete="off" />
+            <button class="search-clear-btn" id="btn-clear-search" style="display: ${this.searchQuery ? 'inline-flex' : 'none'};">✕</button>
+          </div>
         </div>
 
-        <h2 class="m-sec"><span>🧠 ${this.loc.t('cat_memory')}</span><em>${memoryGames.length}</em></h2>
-        <div class="minigame-grid">
-          ${memoryGames.map(id => this.gameCardHtml(id, this.ALL_MINIGAMES.indexOf(id), record)).join('')}
+        <!-- Horizontal Scrollable Category Filter Pills -->
+        <div class="category-tabs-bar" role="tablist">
+          <button class="cat-pill ${this.activeCategory === 'all' ? 'active' : ''}" data-cat="all">${this.loc.t('cat_all')} (${this.ALL_MINIGAMES.length})</button>
+          <button class="cat-pill ${this.activeCategory === 'trending' ? 'active' : ''}" data-cat="trending">${this.loc.t('cat_trending')}</button>
+          <button class="cat-pill ${this.activeCategory === 'action_duel' ? 'active' : ''}" data-cat="action_duel">${this.loc.t('cat_action_duel')}</button>
+          <button class="cat-pill ${this.activeCategory === 'speed_reflex' ? 'active' : ''}" data-cat="speed_reflex">${this.loc.t('cat_speed_reflex')}</button>
+          <button class="cat-pill ${this.activeCategory === 'memory_puzzle' ? 'active' : ''}" data-cat="memory_puzzle">${this.loc.t('cat_memory_puzzle')}</button>
+          <button class="cat-pill ${this.activeCategory === 'favorites' ? 'active' : ''}" data-cat="favorites">${this.loc.t('cat_favorites')}</button>
         </div>
 
-        <h2 class="m-sec"><span>🧰 ${this.loc.t('dock_title')}</span><em>°</em></h2>
-        <!-- Global Action Bar -->
-        <div class="bottom-action-bar m-dock">
-          <button class="action-btn btn-reward-ad-dock" id="btn-reward-ad">${this.loc.t('btn_reward_ad')}</button>
-          <button class="action-btn" id="btn-party-board">${this.loc.t('btn_party')}</button>
-          <button class="action-btn" id="btn-gauntlet-mode">${this.loc.t('btn_gauntlet')}</button>
-          <button class="action-btn" id="btn-trophy-road">${this.loc.t('btn_rank')}</button>
-          <button class="action-btn" id="btn-quests">${this.loc.t('btn_quests')}</button>
-          <button class="action-btn" id="btn-passport">${this.loc.t('btn_passport')}</button>
-          <button class="action-btn" id="btn-tournament">${this.loc.t('btn_cups')}</button>
-          <button class="action-btn" id="btn-locker">${this.loc.t('btn_locker')}</button>
-          <button class="action-btn" id="btn-settings-modal">${this.loc.t('btn_settings')}</button>
-          <button class="action-btn" id="btn-daily">${this.loc.t('btn_daily')}</button>
-          <button class="action-btn" id="btn-achieve">${this.loc.t('btn_achieve')}</button>
-          <button class="action-btn" id="btn-online">${this.loc.t('btn_online')}</button>
-          <button class="action-btn" id="btn-replays">${this.loc.t('btn_replays')}</button>
-          <button class="action-btn" id="btn-a11y">${this.loc.t('btn_a11y')}</button>
-          <button class="action-btn" id="btn-cloud">${this.loc.t('btn_cloud')}</button>
-          <button class="action-btn" id="btn-practice">${this.loc.t('btn_practice')}</button>
-          <button class="action-btn" id="btn-mutators">🎲 Mutators</button>
-          <button class="action-btn icon-only" id="btn-lang-toggle" title="Toggle Language">
-            ${currentLang === 'ar' ? '🇬🇧' : '🇸🇦'}
+        <!-- Sort Bar & Total Count -->
+        <div class="m-sort-bar">
+          <span class="m-games-count" id="m-games-count">${filteredGames.length} ${currentLang === 'ar' ? 'لعبة متاحة' : 'GAMES READY'}</span>
+          <div class="m-sort-pills">
+            <button class="sort-pill ${this.sortMode === 'default' ? 'active' : ''}" data-sort="default">${this.loc.t('sort_default')}</button>
+            <button class="sort-pill ${this.sortMode === 'popular' ? 'active' : ''}" data-sort="popular">${this.loc.t('sort_popular')}</button>
+            <button class="sort-pill ${this.sortMode === 'newest' ? 'active' : ''}" data-sort="newest">${this.loc.t('sort_newest')}</button>
+          </div>
+        </div>
+
+        <!-- Dynamic Filtered Minigame Grid -->
+        <div class="minigame-grid" id="main-minigame-grid">
+          ${filteredGames.map((id, idx) => this.gameCardHtml(id, idx, record)).join('')}
+        </div>
+
+        <!-- Mobile Floating Cyber Navigation Bar -->
+        <nav class="m-floating-nav" aria-label="Main Navigation">
+          <button class="nav-item active" id="nav-btn-home">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">${this.loc.t('btn_nav_home')}</span>
           </button>
-          <button class="action-btn icon-only" id="btn-theme-toggle" title="Toggle Day/Night Mode">
-            ${currentTheme === 'day' ? '☀️' : '🌙'}
+          <button class="nav-item" id="nav-btn-party">
+            <span class="nav-icon">👑</span>
+            <span class="nav-label">${this.loc.t('btn_nav_party')}</span>
           </button>
+          <button class="nav-item" id="nav-btn-gauntlet">
+            <span class="nav-icon">💀</span>
+            <span class="nav-label">${this.loc.t('btn_nav_gauntlet')}</span>
+          </button>
+          <button class="nav-item" id="nav-btn-cups">
+            <span class="nav-icon">🏆</span>
+            <span class="nav-label">${this.loc.t('btn_nav_cups')}</span>
+          </button>
+          <button class="nav-item" id="nav-btn-more">
+            <span class="nav-icon">🧰</span>
+            <span class="nav-label">${this.loc.t('btn_nav_more')}</span>
+          </button>
+        </nav>
+
+        <!-- Slide-up Cyber Bottom Sheet Drawer (Hub) -->
+        <div class="cyber-drawer-backdrop" id="cyber-drawer-backdrop" style="display: none;">
+          <div class="cyber-drawer-sheet" id="cyber-drawer-sheet">
+            <div class="drawer-drag-handle"></div>
+            <div class="drawer-header">
+              <h3 class="drawer-title">${this.loc.t('drawer_title')}</h3>
+              <button class="drawer-close-btn" id="btn-close-drawer">${this.loc.t('drawer_close')}</button>
+            </div>
+            <div class="drawer-grid">
+              <button class="drawer-tool-btn highlight" id="drawer-reward-ad">
+                <span class="tool-icon">🎁</span>
+                <span class="tool-name">${this.loc.t('btn_reward_ad')}</span>
+              </button>
+              <button class="drawer-tool-btn" id="drawer-mutators">
+                <span class="tool-icon">🎲</span>
+                <span class="tool-name">Mutators</span>
+              </button>
+              <button class="drawer-tool-btn" id="drawer-quests">
+                <span class="tool-icon">📜</span>
+                <span class="tool-name">${this.loc.t('btn_quests')}</span>
+              </button>
+              <button class="drawer-tool-btn" id="drawer-daily">
+                <span class="tool-icon">⚡</span>
+                <span class="tool-name">${this.loc.t('btn_daily')}</span>
+              </button>
+              <button class="drawer-tool-btn" id="drawer-passport">
+                <span class="tool-icon">🛂</span>
+                <span class="tool-name">${this.loc.t('btn_passport')}</span>
+              </button>
+              <button class="drawer-tool-btn" id="drawer-tournament">
+                <span class="tool-icon">🏆</span>
+                <span class="tool-name">${this.loc.t('btn_cups')}</span>
+              </button>
+              <button class="drawer-tool-btn" id="drawer-practice">
+                <span class="tool-icon">🎯</span>
+                <span class="tool-name">${this.loc.t('btn_practice')}</span>
+              </button>
+              <button class="drawer-tool-btn" id="drawer-achieve">
+                <span class="tool-icon">🏅</span>
+                <span class="tool-name">${this.loc.t('btn_achieve')}</span>
+              </button>
+              <button class="drawer-tool-btn" id="drawer-online">
+                <span class="tool-icon">🌐</span>
+                <span class="tool-name">${this.loc.t('btn_online')}</span>
+              </button>
+              <button class="drawer-tool-btn" id="drawer-replays">
+                <span class="tool-icon">🎬</span>
+                <span class="tool-name">${this.loc.t('btn_replays')}</span>
+              </button>
+              <button class="drawer-tool-btn" id="drawer-locker">
+                <span class="tool-icon">👕</span>
+                <span class="tool-name">${this.loc.t('btn_locker')}</span>
+              </button>
+              <button class="drawer-tool-btn" id="drawer-a11y">
+                <span class="tool-icon">♿</span>
+                <span class="tool-name">${this.loc.t('btn_a11y')}</span>
+              </button>
+              <button class="drawer-tool-btn" id="drawer-cloud">
+                <span class="tool-icon">☁️</span>
+                <span class="tool-name">${this.loc.t('btn_cloud')}</span>
+              </button>
+              <button class="drawer-tool-btn" id="drawer-settings">
+                <span class="tool-icon">⚙️</span>
+                <span class="tool-name">${this.loc.t('btn_settings')}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -273,49 +560,109 @@ export class UIManager {
       });
     });
 
-    // (Sections replaced the tab filter: all games stay visible, grouped.)
-
-    // Hook 3D Card Tilting & Selection
-    this.root.querySelectorAll('.game-card').forEach((card) => {
-      const el = card as HTMLElement;
-      this.attach3DCardTilt(el);
-
-      const select = () => {
-        const id = el.getAttribute('data-id') as MinigameId;
-        this.audio.playPuckBounce(1.4);
-        this.stopMicroPreviews();
-        if (this.onSelectMinigame) this.onSelectMinigame(id);
-      };
-      el.addEventListener('click', select);
-      el.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          select();
-        }
-      });
+    // Hook Spotlight Play
+    this.root.querySelector('#btn-spotlight-play')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.audio.playPuckBounce(1.5);
+      this.stopMicroPreviews();
+      if (this.onSelectMinigame) this.onSelectMinigame(this.spotlightMinigameId);
+    });
+    this.root.querySelector('#hero-spotlight-card')?.addEventListener('click', () => {
+      this.audio.playPuckBounce(1.5);
+      this.stopMicroPreviews();
+      if (this.onSelectMinigame) this.onSelectMinigame(this.spotlightMinigameId);
     });
 
-    // Quick Shuffle Roulette
+    // Hook Quick Shuffle
     this.root.querySelector('#btn-quick-shuffle')?.addEventListener('click', () => {
       this.executeQuickShuffle();
     });
 
-    // Party Board Launchers
+    // Hook Party Hero Banner
     const launchParty = () => {
       this.audio.playDiceRoll();
       this.stopMicroPreviews();
       if (this.onStartPartyBoard) this.onStartPartyBoard();
     };
+    this.root.querySelector('#hero-party-banner')?.addEventListener('click', launchParty);
     this.root.querySelector('#btn-hero-party')?.addEventListener('click', launchParty);
-    this.root.querySelector('#btn-party-board')?.addEventListener('click', launchParty);
 
-    // Gauntlet Launcher
-    this.root.querySelector('#btn-gauntlet-mode')?.addEventListener('click', () => {
+    // Hook Category Filter Pills
+    this.root.querySelectorAll('.cat-pill').forEach(pill => {
+      pill.addEventListener('click', (e) => {
+        const cat = (e.currentTarget as HTMLElement).getAttribute('data-cat') as typeof this.activeCategory;
+        this.activeCategory = cat;
+        this.root.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+        (e.currentTarget as HTMLElement).classList.add('active');
+        this.audio.playPuckBounce(1.3);
+        this.refreshGameGrid();
+      });
+    });
+
+    // Hook Search Input
+    const searchInput = this.root.querySelector('#menu-search-input') as HTMLInputElement | null;
+    const clearBtn = this.root.querySelector('#btn-clear-search') as HTMLElement | null;
+    searchInput?.addEventListener('input', () => {
+      this.searchQuery = searchInput.value;
+      if (clearBtn) clearBtn.style.display = this.searchQuery ? 'inline-flex' : 'none';
+      this.refreshGameGrid();
+    });
+    clearBtn?.addEventListener('click', () => {
+      this.searchQuery = '';
+      if (searchInput) searchInput.value = '';
+      if (clearBtn) clearBtn.style.display = 'none';
+      this.refreshGameGrid();
+    });
+
+    // Hook Sort Pills
+    this.root.querySelectorAll('.sort-pill').forEach(pill => {
+      pill.addEventListener('click', (e) => {
+        const sort = (e.currentTarget as HTMLElement).getAttribute('data-sort') as typeof this.sortMode;
+        this.sortMode = sort;
+        this.root.querySelectorAll('.sort-pill').forEach(p => p.classList.remove('active'));
+        (e.currentTarget as HTMLElement).classList.add('active');
+        this.audio.playPuckBounce(1.2);
+        this.refreshGameGrid();
+      });
+    });
+
+    // Hook Floating Navigation Bar
+    this.root.querySelector('#nav-btn-home')?.addEventListener('click', () => {
+      this.audio.playPuckBounce(1.1);
+      this.root.querySelector('.ui-overlay')?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    this.root.querySelector('#nav-btn-party')?.addEventListener('click', () => {
+      launchParty();
+    });
+
+    this.root.querySelector('#nav-btn-gauntlet')?.addEventListener('click', () => {
       this.audio.playPuckBounce(1.4);
       if (this.onStartGauntlet) this.onStartGauntlet();
     });
 
-    this.root.querySelector('#btn-reward-ad')?.addEventListener('click', async () => {
+    this.root.querySelector('#nav-btn-cups')?.addEventListener('click', () => {
+      this.audio.playPuckBounce(1.2);
+      this.showTournamentModal();
+    });
+
+    this.root.querySelector('#nav-btn-more')?.addEventListener('click', () => {
+      this.openCyberDrawer();
+    });
+
+    // Hook Cyber Drawer Close
+    this.root.querySelector('#btn-close-drawer')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
+    });
+    this.root.querySelector('#cyber-drawer-backdrop')?.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).id === 'cyber-drawer-backdrop') {
+        this.closeCyberDrawer();
+      }
+    });
+
+    // Hook Drawer Tools
+    this.root.querySelector('#drawer-reward-ad')?.addEventListener('click', async () => {
+      this.closeCyberDrawer();
       this.audio.playPuckBounce(1.2);
       const granted = await AdManager.getInstance().showRewardedAd(
         'daily_gift',
@@ -329,76 +676,85 @@ export class UIManager {
       }
     });
 
-    this.root.querySelector('#btn-trophy-road')?.addEventListener('click', () => {
-      this.audio.playPuckBounce(1.2);
-      this.showTrophyRoadModal();
-    });
-
-    this.root.querySelector('#btn-quests')?.addEventListener('click', () => {
-      this.audio.playPuckBounce(1.2);
-      this.showQuestsModal();
-    });
-
-    this.root.querySelector('#btn-passport')?.addEventListener('click', () => {
-      this.audio.playPuckBounce(1.2);
-      this.showRivalryPassport();
-    });
-
-    this.root.querySelector('#btn-tournament')?.addEventListener('click', () => {
-      this.audio.playPuckBounce(1.2);
-      this.showTournamentModal();
-    });
-
-    this.root.querySelector('#btn-settings-modal')?.addEventListener('click', () => {
-      this.audio.playPuckBounce(1.2);
-      this.showSettingsModal();
-    });
-
-    this.root.querySelector('#btn-locker')?.addEventListener('click', () => {
-      this.audio.playPuckBounce(1.2);
-      this.showLockerModal();
-    });
-
-    this.root.querySelector('#btn-mutators')?.addEventListener('click', () => {
+    this.root.querySelector('#drawer-mutators')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
       this.audio.playPuckBounce(1.2);
       this.showMutatorsModal();
     });
 
-    this.root.querySelector('#btn-daily')?.addEventListener('click', () => {
+    this.root.querySelector('#drawer-quests')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
+      this.audio.playPuckBounce(1.2);
+      this.showQuestsModal();
+    });
+
+    this.root.querySelector('#drawer-daily')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
       this.audio.playPuckBounce(1.2);
       this.showDailyModal();
     });
 
-    this.root.querySelector('#btn-achieve')?.addEventListener('click', () => {
+    this.root.querySelector('#drawer-passport')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
       this.audio.playPuckBounce(1.2);
-      this.showAchievementsModal();
+      this.showRivalryPassport();
     });
 
-    this.root.querySelector('#btn-online')?.addEventListener('click', () => {
+    this.root.querySelector('#drawer-tournament')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
       this.audio.playPuckBounce(1.2);
-      this.showOnlineModal();
+      this.showTournamentModal();
     });
 
-    this.root.querySelector('#btn-replays')?.addEventListener('click', () => {
-      this.audio.playPuckBounce(1.2);
-      this.showReplaysModal();
-    });
-
-    this.root.querySelector('#btn-a11y')?.addEventListener('click', () => {
-      this.audio.playPuckBounce(1.2);
-      this.showAccessibilityModal();
-    });
-
-    this.root.querySelector('#btn-cloud')?.addEventListener('click', () => {
-      this.audio.playPuckBounce(1.2);
-      this.showCloudModal();
-    });
-
-    this.root.querySelector('#btn-practice')?.addEventListener('click', () => {
+    this.root.querySelector('#drawer-practice')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
       this.audio.playPuckBounce(1.2);
       this.showPracticeModal();
     });
 
+    this.root.querySelector('#drawer-achieve')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
+      this.audio.playPuckBounce(1.2);
+      this.showAchievementsModal();
+    });
+
+    this.root.querySelector('#drawer-online')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
+      this.audio.playPuckBounce(1.2);
+      this.showOnlineModal();
+    });
+
+    this.root.querySelector('#drawer-replays')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
+      this.audio.playPuckBounce(1.2);
+      this.showReplaysModal();
+    });
+
+    this.root.querySelector('#drawer-locker')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
+      this.audio.playPuckBounce(1.2);
+      this.showLockerModal();
+    });
+
+    this.root.querySelector('#drawer-a11y')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
+      this.audio.playPuckBounce(1.2);
+      this.showAccessibilityModal();
+    });
+
+    this.root.querySelector('#drawer-cloud')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
+      this.audio.playPuckBounce(1.2);
+      this.showCloudModal();
+    });
+
+    this.root.querySelector('#drawer-settings')?.addEventListener('click', () => {
+      this.closeCyberDrawer();
+      this.audio.playPuckBounce(1.2);
+      this.showSettingsModal();
+    });
+
+    // Hook Header Lang / Theme Toggles
     this.root.querySelector('#btn-lang-toggle')?.addEventListener('click', () => {
       const nextLang = this.loc.toggleLanguage();
       this.progression.setLanguage(nextLang);
@@ -413,6 +769,10 @@ export class UIManager {
       if (this.onThemeChanged) this.onThemeChanged(newTheme);
       this.showMainMenu();
     });
+
+    // Attach card clicks & tilts
+    const mainGrid = this.root.querySelector('#main-minigame-grid');
+    if (mainGrid) this.attachCardEvents(mainGrid);
 
     this.initMicroPreviews();
   }
@@ -482,20 +842,26 @@ export class UIManager {
       }
     }
 
-    // Cull offscreen cards: the menu scrolls, most of the 18 previews are
+    const spot = document.getElementById('canvas-mini-spotlight') as HTMLCanvasElement;
+    if (spot) {
+      const sCtx = spot.getContext('2d');
+      if (sCtx) contexts.set('spotlight', { ctx: sCtx, w: spot.width, h: spot.height, visible: true });
+    }
+
+    // Cull offscreen cards: the menu scrolls, most of the previews are
     // offscreen at any time — painting all of them every frame wastes GPU.
     try {
       this.previewObserver?.disconnect();
       this.previewObserver = new IntersectionObserver((entries) => {
         for (const e of entries) {
           const canvas = e.target as HTMLCanvasElement;
-          const key = canvas.id.replace('canvas-mini-', '');
+          const key = canvas.id === 'canvas-mini-spotlight' ? 'spotlight' : canvas.id.replace('canvas-mini-', '');
           const rec = contexts.get(key);
           if (rec) rec.visible = e.isIntersecting;
         }
       }, { root: this.root.querySelector('.ui-overlay'), threshold: 0.05 });
       for (const id of contexts.keys()) {
-        const c = document.getElementById(`canvas-mini-${id}`);
+        const c = id === 'spotlight' ? document.getElementById('canvas-mini-spotlight') : document.getElementById(`canvas-mini-${id}`);
         if (c) this.previewObserver.observe(c);
       }
     } catch {
@@ -513,9 +879,10 @@ export class UIManager {
       acc += dt;
       if (acc >= 1 / 30) {
         acc = 0;
-        for (const [id, target] of contexts.entries()) {
+        for (const [idKey, target] of contexts.entries()) {
           if (!target.visible) continue;
-          this.renderSpecificMiniPreview(id as MinigameId, target.ctx, target.w, target.h);
+          const cleanId = (idKey === 'spotlight' ? this.spotlightMinigameId : idKey) as MinigameId;
+          this.renderSpecificMiniPreview(cleanId, target.ctx, target.w, target.h);
         }
       }
 

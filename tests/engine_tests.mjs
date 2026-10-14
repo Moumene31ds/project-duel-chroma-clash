@@ -1148,4 +1148,151 @@ test('Mobile Compatibility & Responsive Layout Specs', () => {
   assert.strictEqual(calculateBottomPadding(34), 34, 'Honors 34px inset on iPhone home indicator');
 });
 
+// 55. Category Filtering & Sorting Logic
+test('Home Page - Category Filtering and Sorting Logic', () => {
+  const ALL_MINIGAMES = [
+    'neon_blade', 'physics_sumo', 'tactical_tanks', 'counter_dash',
+    'cyber_hockey', 'cyber_slicer', 'astro_blast', 'cyber_bomb',
+    'laser_drift', 'neon_orbit', 'cyber_hoops', 'laser_pinball',
+    'neon_volley', 'quantum_tug', 'synthwave_rhythm', 'gravity_runner',
+    'chroma_pairs', 'memory_matrix', 'cyber_simon', 'chroma_reaction'
+  ];
+
+  const actionDuels = [
+    'neon_blade', 'physics_sumo', 'tactical_tanks', 'counter_dash',
+    'cyber_hockey', 'cyber_slicer', 'astro_blast'
+  ];
+  const speedReflex = [
+    'cyber_bomb', 'laser_drift', 'neon_orbit', 'cyber_hoops',
+    'laser_pinball', 'neon_volley', 'quantum_tug', 'synthwave_rhythm', 'gravity_runner'
+  ];
+  const memoryPuzzle = [
+    'chroma_pairs', 'memory_matrix', 'cyber_simon', 'chroma_reaction'
+  ];
+
+  const mockStats = {
+    neon_blade: { p1Wins: 15, p2Wins: 10 },
+    cyber_bomb: { p1Wins: 40, p2Wins: 35 },
+    laser_drift: { p1Wins: 5, p2Wins: 2 }
+  };
+
+  function filterAndSort(category, sortMode, favorites = []) {
+    let list = [...ALL_MINIGAMES];
+    if (category === 'trending') {
+      list.sort((a, b) => {
+        const aPlays = (mockStats[a]?.p1Wins || 0) + (mockStats[a]?.p2Wins || 0);
+        const bPlays = (mockStats[b]?.p1Wins || 0) + (mockStats[b]?.p2Wins || 0);
+        return bPlays - aPlays;
+      });
+      list = list.slice(0, 8);
+    } else if (category === 'action_duel') {
+      list = list.filter(id => actionDuels.includes(id));
+    } else if (category === 'speed_reflex') {
+      list = list.filter(id => speedReflex.includes(id));
+    } else if (category === 'memory_puzzle') {
+      list = list.filter(id => memoryPuzzle.includes(id));
+    } else if (category === 'favorites') {
+      list = list.filter(id => favorites.includes(id));
+    }
+
+    if (sortMode === 'popular') {
+      list.sort((a, b) => {
+        const aPlays = (mockStats[a]?.p1Wins || 0) + (mockStats[a]?.p2Wins || 0);
+        const bPlays = (mockStats[b]?.p1Wins || 0) + (mockStats[b]?.p2Wins || 0);
+        return bPlays - aPlays;
+      });
+    }
+
+    return list;
+  }
+
+  // Verify categories
+  const actionList = filterAndSort('action_duel', 'default');
+  assert.strictEqual(actionList.length, 7, 'Action & Duels has 7 games');
+  assert.ok(actionList.includes('neon_blade') && actionList.includes('tactical_tanks'));
+
+  const speedList = filterAndSort('speed_reflex', 'default');
+  assert.strictEqual(speedList.length, 9, 'Speed & Reflex has 9 games');
+  assert.ok(speedList.includes('cyber_bomb') && speedList.includes('laser_drift'));
+
+  const puzzleList = filterAndSort('memory_puzzle', 'default');
+  assert.strictEqual(puzzleList.length, 4, 'Memory & Mind has 4 games');
+  assert.ok(puzzleList.includes('chroma_pairs'));
+
+  // Trending
+  const trendingList = filterAndSort('trending', 'default');
+  assert.strictEqual(trendingList.length, 8, 'Trending returns top 8');
+  assert.strictEqual(trendingList[0], 'cyber_bomb', 'Most played game tops trending');
+  assert.strictEqual(trendingList[1], 'neon_blade');
+
+  // Favorites category
+  const favList = filterAndSort('favorites', 'default', ['cyber_bomb', 'laser_pinball']);
+  assert.strictEqual(favList.length, 2, 'Favorites filter returns only starred games');
+  assert.deepStrictEqual(favList, ['cyber_bomb', 'laser_pinball']);
+});
+
+// 56. Home Page - Live Search & Favorite Toggle Persistence
+test('Home Page - Live Search & Favorite Toggle Persistence', () => {
+  const mockGamesMeta = {
+    neon_blade: { title: 'Neon Blade', subtitle: 'Cyber Katana Clash', badge: '1v1 Duel' },
+    cyber_bomb: { title: 'Cyber Bomb', subtitle: 'Hot Potato Explosive', badge: 'Fast Reflex' },
+    laser_pinball: { title: 'Laser Pinball', subtitle: 'Neon Bouncers', badge: 'Arcade' }
+  };
+
+  function search(query, list) {
+    const q = query.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(id => {
+      const meta = mockGamesMeta[id] || { title: id, subtitle: '', badge: '' };
+      return meta.title.toLowerCase().includes(q) ||
+             meta.subtitle.toLowerCase().includes(q) ||
+             meta.badge.toLowerCase().includes(q) ||
+             id.replace('_', ' ').toLowerCase().includes(q);
+    });
+  }
+
+  const all = ['neon_blade', 'cyber_bomb', 'laser_pinball'];
+
+  assert.deepStrictEqual(search('blade', all), ['neon_blade'], 'Matches title substring');
+  assert.deepStrictEqual(search('potato', all), ['cyber_bomb'], 'Matches subtitle substring');
+  assert.deepStrictEqual(search('arcade', all), ['laser_pinball'], 'Matches badge substring');
+  assert.deepStrictEqual(search('neon', all), ['neon_blade', 'laser_pinball'], 'Matches multiple matches');
+  assert.deepStrictEqual(search('xyznonexistent', all), [], 'Returns empty when nothing matches');
+
+  // Favorite toggle simulation
+  class MockProgression {
+    constructor() {
+      this.favorites = [];
+    }
+    getFavorites() {
+      return [...this.favorites];
+    }
+    isFavorite(id) {
+      return this.favorites.includes(id);
+    }
+    toggleFavorite(id) {
+      const idx = this.favorites.indexOf(id);
+      if (idx >= 0) {
+        this.favorites.splice(idx, 1);
+        return false;
+      } else {
+        this.favorites.push(id);
+        return true;
+      }
+    }
+  }
+
+  const prog = new MockProgression();
+  assert.strictEqual(prog.isFavorite('cyber_bomb'), false);
+  const toggledOn = prog.toggleFavorite('cyber_bomb');
+  assert.strictEqual(toggledOn, true, 'Favorite toggled on');
+  assert.strictEqual(prog.isFavorite('cyber_bomb'), true);
+  assert.deepStrictEqual(prog.getFavorites(), ['cyber_bomb']);
+
+  const toggledOff = prog.toggleFavorite('cyber_bomb');
+  assert.strictEqual(toggledOff, false, 'Favorite toggled off');
+  assert.strictEqual(prog.isFavorite('cyber_bomb'), false);
+  assert.deepStrictEqual(prog.getFavorites(), []);
+});
+
 

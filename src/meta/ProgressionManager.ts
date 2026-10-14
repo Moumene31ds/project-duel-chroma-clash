@@ -94,7 +94,8 @@ export class ProgressionManager {
         crtScanlines: false
       },
       chassisMode: 'phone',
-      gauntletHighScore: 0
+      gauntletHighScore: 0,
+      favoriteMinigames: ['neon_blade', 'cyber_bomb']
     };
   }
 
@@ -154,6 +155,7 @@ export class ProgressionManager {
         return { 
           ...defaults, 
           ...parsed,
+          favoriteMinigames: Array.isArray(parsed.favoriteMinigames) ? parsed.favoriteMinigames : defaults.favoriteMinigames,
           minigameStats: { ...defaults.minigameStats, ...(parsed.minigameStats || {}) },
           aiStats: { ...defaults.aiStats, ...(parsed.aiStats || {}) },
           mutators: { ...defaults.mutators, ...(parsed.mutators || {}) },
@@ -228,6 +230,30 @@ export class ProgressionManager {
   public setAIDifficulty(diff: AIDifficulty) {
     this.data.aiDifficulty = diff;
     this.saveData();
+  }
+
+  public getFavorites(): MinigameId[] {
+    if (!this.data.favoriteMinigames) this.data.favoriteMinigames = [];
+    return this.data.favoriteMinigames;
+  }
+
+  public isFavorite(id: MinigameId): boolean {
+    return this.getFavorites().includes(id);
+  }
+
+  public toggleFavorite(id: MinigameId): boolean {
+    const favs = this.getFavorites();
+    const idx = favs.indexOf(id);
+    let isNowFav: boolean;
+    if (idx >= 0) {
+      favs.splice(idx, 1);
+      isNowFav = false;
+    } else {
+      favs.push(id);
+      isNowFav = true;
+    }
+    this.saveData();
+    return isNowFav;
   }
 
   public getMutators(): GameMutators {
