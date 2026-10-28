@@ -257,7 +257,7 @@ export class AIBotEngine {
       discAngle += (Math.random() - 0.5) * (prof.jitterPx / 38) * 0.35;
     }
 
-    botPaddle.targetAngle = discAngle;
+    botPaddle.targetAngle = Math.max(-0.8 * Math.PI, Math.min(-0.2 * Math.PI, discAngle));
   }
 
   // --- 7. NEON BLADE DUEL BOT ---

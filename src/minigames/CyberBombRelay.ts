@@ -201,9 +201,9 @@ export class CyberBombRelay extends BaseMinigame {
     const p1Touches = this.input.getTouchesForPlayer(1);
     if (p1Touches.length > 0) {
       const active = p1Touches[p1Touches.length - 1];
-      this.p1Paddle.targetX = active.arenaX;
+      this.p1Paddle.targetX = active.rawX;
       // Clamped Y movement
-      this.p1Paddle.targetY = Math.max(height * 0.65, Math.min(height * 0.92, active.arenaY));
+      this.p1Paddle.targetY = Math.max(height * 0.65, Math.min(height * 0.92, active.rawY));
     }
 
     // Player 2 (Top Half: AI or Human)
@@ -213,8 +213,8 @@ export class CyberBombRelay extends BaseMinigame {
       const p2Touches = this.input.getTouchesForPlayer(2);
       if (p2Touches.length > 0) {
         const active = p2Touches[p2Touches.length - 1];
-        this.p2Paddle.targetX = active.arenaX;
-        this.p2Paddle.targetY = Math.max(height * 0.08, Math.min(height * 0.35, active.arenaY));
+        this.p2Paddle.targetX = active.rawX;
+        this.p2Paddle.targetY = Math.max(height * 0.08, Math.min(height * 0.35, active.rawY));
       }
     }
 

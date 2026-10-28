@@ -338,7 +338,7 @@ export class MusicEngine {
         const msg = new SpeechSynthesisUtterance(phrase);
         msg.rate = 1.25; // Energetic arcade pace
         msg.pitch = 1.15; // Punchy cyber pitch
-        msg.volume = this.volume * 1.5;
+        msg.volume = Math.max(0, Math.min(1.0, this.volume * 1.5));
 
         if (lang === 'ar') {
           msg.lang = 'ar-SA';

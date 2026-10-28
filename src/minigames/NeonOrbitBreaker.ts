@@ -175,11 +175,13 @@ export class NeonOrbitBreaker extends BaseMinigame {
       // Keyboard fallback (frame-rate independent + clamped to the same arcs
       // as the touch path so the paddle can never cross to the rival side)
       const step = 2.4 * dt;
-      if (kb.x < 0) paddle.targetAngle -= step;
-      if (kb.x > 0) paddle.targetAngle += step;
       if (player === 1) {
+        if (kb.x < 0) paddle.targetAngle += step;
+        if (kb.x > 0) paddle.targetAngle -= step;
         paddle.targetAngle = Math.max(0.2 * Math.PI, Math.min(0.8 * Math.PI, paddle.targetAngle));
       } else {
+        if (kb.x < 0) paddle.targetAngle -= step;
+        if (kb.x > 0) paddle.targetAngle += step;
         paddle.targetAngle = Math.max(-0.8 * Math.PI, Math.min(-0.2 * Math.PI, paddle.targetAngle));
       }
     }

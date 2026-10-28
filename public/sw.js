@@ -1,9 +1,8 @@
-const CACHE = 'duel-chroma-clash-v5';
+const CACHE = 'duel-chroma-clash-v6';
 const ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/styles/main.css',
   '/favicon.ico',
   '/favicon.svg',
   '/icon-192.png',

@@ -247,13 +247,21 @@ export class LaserPinball extends BaseMinigame {
       if (ball.y < 0) {
         // P1 Scored (Passed P2's defense)
         this.balls.splice(i, 1);
-        if (this.balls.length === 0) {
+        this.p1Score++;
+        this.audio.playGoalDetonation();
+        this.juice.emitExplosion(width / 2, height * 0.2, '#FF0055', 30);
+        if (this.p1Score >= this.targetScore || this.balls.length === 0) {
+          this.p1Score--;
           this.triggerPointScore(1, width, height);
         }
       } else if (ball.y > height) {
         // P2 Scored (Passed P1's defense)
         this.balls.splice(i, 1);
-        if (this.balls.length === 0) {
+        this.p2Score++;
+        this.audio.playGoalDetonation();
+        this.juice.emitExplosion(width / 2, height * 0.8, '#0084FF', 30);
+        if (this.p2Score >= this.targetScore || this.balls.length === 0) {
+          this.p2Score--;
           this.triggerPointScore(2, width, height);
         }
       }

@@ -11,6 +11,7 @@ import {
   AudioSettings,
   ChassisMode
 } from '../core/types';
+import { AccessibilityManager } from '../core/AccessibilityManager';
 
 export class ProgressionManager {
   private readonly STORAGE_KEY = 'project_duel_save_v4';
@@ -441,35 +442,54 @@ export class ProgressionManager {
 
   public getSkinColors(player: PlayerIndex): { primary: string; secondary: string } {
     const skin = player === 1 ? this.data.activeP1Skin : this.data.activeP2Skin;
+    let colors: { primary: string; secondary: string };
     switch (skin) {
       case 'synthwave':
-        return player === 1 
+        colors = player === 1 
           ? { primary: '#FF007F', secondary: '#FFAA00' }
           : { primary: '#9D00FF', secondary: '#00F0FF' };
+        break;
       case 'matrix':
-        return player === 1 
+        colors = player === 1 
           ? { primary: '#00FF66', secondary: '#AAFF00' }
           : { primary: '#00D455', secondary: '#008833' };
+        break;
       case 'solar_gold':
-        return player === 1 
+        colors = player === 1 
           ? { primary: '#FFD700', secondary: '#FF9900' }
           : { primary: '#FFF0A0', secondary: '#FFCC00' };
+        break;
       case 'galactic':
-        return player === 1 
+        colors = player === 1 
           ? { primary: '#A855F7', secondary: '#38BDF8' }
           : { primary: '#EC4899', secondary: '#6366F1' };
+        break;
       case 'hellfire':
-        return player === 1 
+        colors = player === 1 
           ? { primary: '#FF1100', secondary: '#FF8800' }
           : { primary: '#DC2626', secondary: '#F59E0B' };
+        break;
       case 'celestial':
-        return player === 1
+        colors = player === 1
           ? { primary: '#E0AAFF', secondary: '#C77DFF' }
           : { primary: '#7B2CBF', secondary: '#3C096C' };
+        break;
       default: // Cyber Neon / Solar
-        return player === 1 
+        colors = player === 1 
           ? { primary: '#FF0055', secondary: '#FFAA00' }
           : { primary: '#0084FF', secondary: '#00E5A3' };
+        break;
+    }
+
+    try {
+      const a11y = AccessibilityManager.getInstance();
+      const pal = a11y.palette(colors.primary, colors.secondary);
+      return {
+        primary: player === 1 ? pal.p1 : pal.p2,
+        secondary: colors.secondary
+      };
+    } catch {
+      return colors;
     }
   }
 

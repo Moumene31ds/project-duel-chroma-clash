@@ -16,6 +16,8 @@ export abstract class BaseMinigame {
 
   public p1Score: number = 0;
   public p2Score: number = 0;
+  public p1Streak: number = 0;
+  public p2Streak: number = 0;
   public targetScore: number = 5;
   public matchWinner: PlayerIndex | null = null;
   public roundWinner: PlayerIndex | null = null;
@@ -65,6 +67,8 @@ export abstract class BaseMinigame {
     this.targetScore = this.meta.targetScore;
     this.p1Score = 0;
     this.p2Score = 0;
+    this.p1Streak = 0;
+    this.p2Streak = 0;
     this.matchWinner = null;
     this.roundWinner = null;
     this.isRoundOver = false;
@@ -169,8 +173,26 @@ export abstract class BaseMinigame {
     this.isRoundOver = true;
     this.roundOverTimer = 1.4; // 1.4s delay for juice impact
 
-    if (winner === 1) this.p1Score++;
-    else this.p2Score++;
+    if (winner === 1) {
+      this.p1Score++;
+      this.p1Streak++;
+      this.p2Streak = 0;
+    } else {
+      this.p2Score++;
+      this.p2Streak++;
+      this.p1Streak = 0;
+    }
+
+    const currentStreak = winner === 1 ? this.p1Streak : this.p2Streak;
+    if (this.p1Score < this.targetScore && this.p2Score < this.targetScore) {
+      if (currentStreak === 2) {
+        this.audio.music.announce('Double Streak!');
+      } else if (currentStreak === 3) {
+        this.audio.music.announce('Triple Streak!');
+      } else if (currentStreak >= 4) {
+        this.audio.music.announce('Cyber Beast!');
+      }
+    }
 
     this.audio.playGoalDetonation();
     this.juice.emitExplosion(width / 2, winner === 1 ? height * 0.2 : height * 0.8, winner === 1 ? '#FF0055' : '#0084FF', 40);

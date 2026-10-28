@@ -157,15 +157,14 @@ export class GravityRunner extends BaseMinigame {
     this.audio.hapticLight();
   }
 
-  private autoBot(_height: number): void {
+  private autoBot(height: number): void {
     // flip if next obstacle needs opposite side
     const next = this.obstacles.filter(o => o.player === 2 && !o.passed && o.x > this.r2.x).sort((a, b) => a.x - b.x)[0];
     if (!next) return;
     const diff = this.progression.getAIDifficulty();
     const reactDist = diff === 'hard' ? 170 : diff === 'medium' ? 130 : 95;
     if (next.x - this.r2.x < reactDist) {
-      const needGravity = Math.abs(next.gapY - this.laneBottom(2, 840)) < Math.abs(next.gapY - this.laneTop(2, 840)) ? 1 : -1;
-      void _height;
+      const needGravity = Math.abs(next.gapY - this.laneBottom(2, height)) < Math.abs(next.gapY - this.laneTop(2, height)) ? 1 : -1;
       if (this.r2.gravity !== needGravity) this.flip(2);
     }
   }

@@ -214,11 +214,7 @@ export class ChromaPairs extends BaseMinigame {
     for (const touch of touches) {
       if (touch.phase !== 'began') continue;
 
-      // Turn ownership: only the active player's own half may flip cards.
-      // Without this the rival can tap during your turn and burn your flips.
-      if (touch.player !== this.activePlayer) continue;
-
-      // Allow tapping any card across the board during the active turn
+      // Allow tapping any card across the board during the active human turn
 
       // Check card hit
       for (let i = 0; i < this.cards.length; i++) {

@@ -6,6 +6,11 @@ export class AudioHaptics {
   private sfxGain: GainNode | null = null;
   private isMuted: boolean = false;
   private isHapticsEnabled: boolean = true;
+  private savedMasterVolume: number = 0.6;
+
+  private get sfxDestination(): AudioNode {
+    return this.sfxGain || this.masterGain!;
+  }
   public music: MusicEngine = new MusicEngine();
 
   constructor() {
@@ -32,8 +37,9 @@ export class AudioHaptics {
   }
 
   public setMasterVolume(vol: number) {
-    if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setTargetAtTime(Math.max(0, Math.min(1, vol)), this.ctx.currentTime, 0.05);
+    this.savedMasterVolume = Math.max(0, Math.min(1, vol));
+    if (this.masterGain && this.ctx && !this.isMuted) {
+      this.masterGain.gain.setTargetAtTime(this.savedMasterVolume, this.ctx.currentTime, 0.05);
     }
   }
 
@@ -62,8 +68,9 @@ export class AudioHaptics {
 
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
-    if (this.masterGain) {
-      this.masterGain.gain.value = this.isMuted ? 0 : 0.5;
+    if (this.masterGain && this.ctx) {
+      const target = this.isMuted ? 0 : this.savedMasterVolume;
+      this.masterGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.05);
     }
     return this.isMuted;
   }
@@ -125,7 +132,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.08);
 
@@ -146,7 +153,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.12);
 
@@ -167,7 +174,7 @@ export class AudioHaptics {
     subGain.gain.setValueAtTime(0.9, now);
     subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
     subOsc.connect(subGain);
-    subGain.connect(this.masterGain);
+    subGain.connect(this.sfxDestination);
     subOsc.start(now);
     subOsc.stop(now + 0.6);
 
@@ -190,7 +197,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.22);
 
@@ -211,7 +218,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.15);
 
@@ -234,7 +241,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.07);
 
@@ -258,7 +265,7 @@ export class AudioHaptics {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
 
       osc.connect(gain);
-      gain.connect(this.masterGain);
+      gain.connect(this.sfxDestination);
       osc.start(now);
       osc.stop(now + 0.25);
     });
@@ -280,7 +287,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.12);
 
@@ -304,7 +311,7 @@ export class AudioHaptics {
       gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.12);
 
       osc.connect(gain);
-      gain.connect(this.masterGain);
+      gain.connect(this.sfxDestination);
       osc.start(noteTime);
       osc.stop(noteTime + 0.12);
     });
@@ -326,7 +333,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + dur);
 
@@ -350,7 +357,7 @@ export class AudioHaptics {
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
 
       osc.connect(gain);
-      gain.connect(this.masterGain);
+      gain.connect(this.sfxDestination);
       osc.start(time);
       osc.stop(time + 0.1);
     };
@@ -384,7 +391,7 @@ export class AudioHaptics {
 
     noise.connect(filter);
     filter.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
 
     noise.start(now);
     noise.stop(now + duration);
@@ -407,7 +414,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
 
     osc.start(now);
     osc.stop(now + 0.35);
@@ -428,7 +435,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
 
     osc.start(now);
     osc.stop(now + 0.08);
@@ -452,7 +459,7 @@ export class AudioHaptics {
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
 
       osc.connect(gain);
-      gain.connect(this.masterGain!);
+      gain.connect(this.sfxDestination);
 
       osc.start(time);
       osc.stop(time + 0.25);
@@ -475,7 +482,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
 
     osc.start(now);
     osc.stop(now + 0.25);
@@ -499,7 +506,7 @@ export class AudioHaptics {
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
 
       osc.connect(gain);
-      gain.connect(this.masterGain!);
+      gain.connect(this.sfxDestination);
 
       osc.start(time);
       osc.stop(time + 0.22);
@@ -521,7 +528,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
 
     osc.start(now);
     osc.stop(now + 0.3);
@@ -542,7 +549,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
 
     osc.start(now);
     osc.stop(now + 0.4);
@@ -568,7 +575,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
 
     osc.start(now);
     osc.stop(now + 0.12);
@@ -592,7 +599,7 @@ export class AudioHaptics {
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.3);
 
       osc.connect(gain);
-      gain.connect(this.masterGain!);
+      gain.connect(this.sfxDestination);
 
       osc.start(time);
       osc.stop(time + 0.3);
@@ -614,7 +621,7 @@ export class AudioHaptics {
       gain.gain.setValueAtTime(0.2, time);
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
       osc.connect(gain);
-      gain.connect(this.masterGain);
+      gain.connect(this.sfxDestination);
       osc.start(time);
       osc.stop(time + 0.04);
     }
@@ -633,7 +640,7 @@ export class AudioHaptics {
     gain.gain.setValueAtTime(0.35, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.2);
     this.hapticMedium();
@@ -650,7 +657,7 @@ export class AudioHaptics {
     gain.gain.setValueAtTime(0.3, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.08);
     this.hapticLight();
@@ -667,7 +674,7 @@ export class AudioHaptics {
     gain.gain.setValueAtTime(0.45, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.25);
     this.hapticMedium();
@@ -683,7 +690,7 @@ export class AudioHaptics {
     gain.gain.setValueAtTime(0.4, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.2);
     this.hapticLight();
@@ -702,7 +709,7 @@ export class AudioHaptics {
       gain.gain.setValueAtTime(0.4, time);
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
       osc.connect(gain);
-      gain.connect(this.masterGain!);
+      gain.connect(this.sfxDestination);
       osc.start(time);
       osc.stop(time + 0.35);
     });
@@ -725,7 +732,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + (isSpike ? 0.22 : 0.12));
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + (isSpike ? 0.23 : 0.13));
 
@@ -752,7 +759,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.15);
 
@@ -774,7 +781,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.33);
 
@@ -795,7 +802,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.13);
 
@@ -816,7 +823,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.19);
 
@@ -838,7 +845,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.19);
     this.hapticLight();
@@ -859,7 +866,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.46);
 
@@ -884,7 +891,7 @@ export class AudioHaptics {
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
 
       osc.connect(gain);
-      gain.connect(this.masterGain);
+      gain.connect(this.sfxDestination);
       osc.start(time);
       osc.stop(time + 0.16);
     };
@@ -910,7 +917,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + dur + 0.01);
     this.hapticLight();
@@ -931,7 +938,7 @@ export class AudioHaptics {
     subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
 
     subOsc.connect(subGain);
-    subGain.connect(this.masterGain);
+    subGain.connect(this.sfxDestination);
     subOsc.start(now);
     subOsc.stop(now + 0.65);
 
@@ -955,7 +962,7 @@ export class AudioHaptics {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxDestination);
     osc.start(now);
     osc.stop(now + 0.13);
 

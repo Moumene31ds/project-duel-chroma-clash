@@ -2755,26 +2755,104 @@ export class UIManager {
     const rollBtn = document.getElementById('btn-roll-dice');
     rollBtn?.addEventListener('click', () => {
       if (board.getState().phase !== 'roll') return;
-      const roll = board.rollDice();
-      board.advanceActivePlayer(roll);
-      renderBoard();
+      rollBtn.setAttribute('disabled', 'true');
+      let rollTicks = 0;
+      const diceFaces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+      const diceInterval = setInterval(() => {
+        rollTicks++;
+        const rand = Math.floor(Math.random() * 6) + 1;
+        rollBtn.innerHTML = `🎲 ${diceFaces[rand - 1]} ROLLING... (${rand})`;
+        if (rollTicks >= 6) {
+          clearInterval(diceInterval);
+          const roll = board.rollDice();
+          rollBtn.innerHTML = `🎲 ${diceFaces[roll - 1]} ROLLED: ${roll}!`;
+          board.advanceActivePlayer(roll);
+          renderBoard();
 
-      const curState = board.getState();
-      const ticker = document.getElementById('party-event-ticker');
-      if (ticker) ticker.innerText = curState.lastEventMessage;
+          const curState = board.getState();
+          const ticker = document.getElementById('party-event-ticker');
+          if (ticker) ticker.innerText = curState.lastEventMessage;
 
-      if (curState.phase === 'duel_pending') {
-        const duelGame = board.getRandomDuelMinigame();
-        setTimeout(() => onTriggerDuel(duelGame), 800);
-      } else if (curState.phase !== 'game_over') {
-        setTimeout(() => {
-          board.endTurn();
-          this.showPartyBoard(board, onTriggerDuel, onExit);
-        }, 1200);
-      }
+          if (curState.phase === 'duel_pending') {
+            const duelGame = board.getRandomDuelMinigame();
+            setTimeout(() => onTriggerDuel(duelGame), 900);
+          } else if (curState.phase === 'game_over') {
+            setTimeout(() => {
+              this.showPartyVictoryModal(board, () => {
+                board.startNewGame();
+                this.showPartyBoard(board, onTriggerDuel, onExit);
+              }, onExit);
+            }, 800);
+          } else {
+            setTimeout(() => {
+              board.endTurn();
+              this.showPartyBoard(board, onTriggerDuel, onExit);
+            }, 1200);
+          }
+        }
+      }, 70);
     });
 
     document.getElementById('btn-exit-party')?.addEventListener('click', onExit);
+  }
+
+  public showPartyVictoryModal(board: PartyBoardManager, onRematch: () => void, onExit: () => void) {
+    const state = board.getState();
+    const winnerIdx = state.winner || 1;
+    const winner = state.players[winnerIdx];
+    const loser = state.players[winnerIdx === 1 ? 2 : 1];
+    const isAr = this.loc.getLanguage() === 'ar';
+    const winColor = winnerIdx === 1 ? '#FF0055' : '#0084FF';
+
+    this.audio.playVictoryFanfare();
+
+    const modal = document.createElement('div');
+    modal.className = 'ui-modal-backdrop';
+    modal.innerHTML = `
+      <div class="glass-modal party-victory-modal" style="text-align: center; max-width: 440px; border: 2px solid ${winColor}; box-shadow: 0 0 35px ${winColor}66;">
+        <div style="font-size: 54px; animation: bounce 0.8s infinite alternate;">👑</div>
+        <h2 class="modal-title" style="color: ${winColor}; margin-bottom: 6px;">
+          ${isAr ? 'بطل حفلة السايبر الكبرى!' : 'PARTY CHAMPION!'}
+        </h2>
+        <div style="font-size: 18px; font-weight: 900; color: #FFF; margin-bottom: 16px;">
+          ${winner.name} ${isAr ? 'يحرز التاج الأسطوري!' : 'CLAIMS THE CYBER CROWN!'}
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+          <div style="background: rgba(255,255,255,0.06); padding: 12px; border-radius: 12px; border: 1px solid ${winColor}44;">
+            <div style="font-size: 13px; color: ${winColor}; font-weight: 700;">${winner.name} (🏆)</div>
+            <div style="font-size: 22px; font-weight: 900; margin-top: 4px;">⭐ ${winner.stars}</div>
+            <div style="font-size: 13px; opacity: 0.8;">🪙 ${winner.coins} ${isAr ? 'عملة' : 'Coins'}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="font-size: 13px; opacity: 0.7; font-weight: 700;">${loser.name}</div>
+            <div style="font-size: 22px; font-weight: 900; margin-top: 4px;">⭐ ${loser.stars}</div>
+            <div style="font-size: 13px; opacity: 0.8;">🪙 ${loser.coins} ${isAr ? 'عملة' : 'Coins'}</div>
+          </div>
+        </div>
+
+        <div class="modal-btn-group" style="display: flex; gap: 10px;">
+          <button class="modal-btn primary" id="btn-party-rematch" style="flex: 1; background: ${winColor};">
+            ${isAr ? '🔄 جولة جديدة' : '🔄 REMATCH'}
+          </button>
+          <button class="modal-btn danger" id="btn-party-exit" style="flex: 1;">
+            ${isAr ? '🏠 القائمة الرئيسية' : '🏠 MAIN MENU'}
+          </button>
+        </div>
+      </div>
+    `;
+
+    modal.querySelector('#btn-party-rematch')?.addEventListener('click', () => {
+      this.dismissModal(modal);
+      onRematch();
+    });
+
+    modal.querySelector('#btn-party-exit')?.addEventListener('click', () => {
+      this.dismissModal(modal);
+      onExit();
+    });
+
+    this.presentModal(modal);
   }
 
   public showTournamentModal() {
@@ -3212,8 +3290,10 @@ export class UIManager {
   }
 
   public showTutorialModal(id: MinigameId, onStart: () => void) {
-    const steps = TutorialManager.stepsFor(id);
+    const lang = this.loc.getLanguage();
+    const steps = TutorialManager.stepsFor(id, lang);
     const meta = this.loc.getMinigameText(id);
+    const isAr = lang === 'ar';
     const modal = document.createElement('div');
     modal.className = 'ui-modal-backdrop';
     modal.innerHTML = `
@@ -3221,8 +3301,8 @@ export class UIManager {
         <h2 class="modal-title">${this.loc.t('tutorial_title')}: ${meta.title}</h2>
         ${steps.map(s => `<div class="skin-item"><div class="skin-info"><div class="skin-name">${s.title}</div><div class="skin-req">${s.body}${s.tip ? ` • 💡 ${s.tip}` : ''}</div></div></div>`).join('')}
         <div class="modal-btn-group">
-          <button class="modal-btn primary" id="btn-tut-go">FIGHT!</button>
-          <button class="modal-btn" id="btn-tut-skip">SKIP</button>
+          <button class="modal-btn primary" id="btn-tut-go">${isAr ? '⚡ ابدأ القتال!' : '⚡ FIGHT!'}</button>
+          <button class="modal-btn" id="btn-tut-skip">${isAr ? 'تخطي' : 'SKIP'}</button>
         </div>
       </div>
     `;

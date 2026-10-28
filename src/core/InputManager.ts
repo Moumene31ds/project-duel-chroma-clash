@@ -198,6 +198,7 @@ export class InputManager {
     if (this.mirrorModeEnabled) {
       arenaX = w - arenaX;
       vx = -vx;
+      normX = 1 - normX;
     }
 
     return {

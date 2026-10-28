@@ -325,7 +325,9 @@ export class TacticalTanks extends BaseMinigame {
         if (t.normX < 0.5) {
           // Drive joystick
           const moveSpeed = 160;
-          const targetAngle = Math.atan2(t.vy, t.vx);
+          const dragX = player === 1 ? t.vx : -t.vx;
+          const dragY = player === 1 ? t.vy : -t.vy;
+          const targetAngle = Math.atan2(dragY, dragX);
           if (Math.abs(t.vx) > 30 || Math.abs(t.vy) > 30) {
             tank.angle = targetAngle;
             tank.x += Math.cos(tank.angle) * moveSpeed * dt;

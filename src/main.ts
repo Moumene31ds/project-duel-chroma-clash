@@ -67,6 +67,9 @@ class GameEngine {
   private replay = ReplayManager.getInstance();
   private perf = PerformanceManager.getInstance();
 
+  // Saved user mutators before starting daily challenge
+  private savedMutatorsBeforeDaily: ReturnType<ProgressionManager['getMutators']> | null = null;
+
   // In-app history: mirrors browser entries WE pushed (modals + matches) so
   // the Android back button navigates inside the game instead of exiting.
   private histDepth = 0;
@@ -326,6 +329,7 @@ class GameEngine {
 
     this.ui.onStartDaily = (id: MinigameId) => {
       const daily = DailyChallengeManager.getDaily();
+      this.savedMutatorsBeforeDaily = { ...this.progression.getMutators() };
       const mut = this.progression.getMutators();
       for (const [k, v] of Object.entries(daily.mutators)) {
         if (v && !mut[k as keyof typeof mut]) this.progression.toggleMutator(k as keyof typeof mut);
@@ -435,6 +439,15 @@ class GameEngine {
     this.activeMinigame = null;
     this.audio.music.setLowPass(false);
     this.audio.playMusic('menu');
+    if (this.savedMutatorsBeforeDaily) {
+      const current = this.progression.getMutators();
+      for (const [k, v] of Object.entries(this.savedMutatorsBeforeDaily)) {
+        if (current[k as keyof typeof current] !== v) {
+          this.progression.toggleMutator(k as keyof typeof current);
+        }
+      }
+      this.savedMutatorsBeforeDaily = null;
+    }
     if (this.isInPartyBoard) {
       this.ui.showPartyBoard(
         this.partyBoard,

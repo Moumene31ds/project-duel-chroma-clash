@@ -152,7 +152,7 @@ export class CyberSimon extends BaseMinigame {
         if (arcId !== null) {
           this.processTap(1, arcId, width, height);
         }
-      } else if (touch.player === 2 && !this.p2Error && this.progression.getGameMode() === 'local_2p') {
+      } else if (touch.player === 2 && !this.p2Error && this.progression.getGameMode() !== 'vs_ai') {
         const arcId = this.getArcAtPoint(touch.rawX, touch.rawY, 2, width, height);
         if (arcId !== null) {
           this.processTap(2, arcId, width, height);

@@ -216,19 +216,19 @@ export class CyberHoops extends BaseMinigame {
       const p = touch.player;
 
       if (touch.phase === 'began') {
-        // Defensive Block Tap in Midfield?
-        const isMidfield = p === 1 ? (touch.rawY < height * 0.55 && touch.rawY > height * 0.35)
-                                   : (touch.rawY > height * 0.45 && touch.rawY < height * 0.65);
+        // Defensive Block Tap in Midfield Zone
+        const isMidfield = p === 1 ? (touch.rawY <= height * 0.70 && touch.rawY >= height * 0.50)
+                                   : (touch.rawY >= height * 0.30 && touch.rawY <= height * 0.50);
         if (isMidfield) {
           this.triggerDefensiveBlock(p, touch.rawX, touch.rawY);
           continue;
         }
 
-        // Shooting Drag Start
-        if (p === 1 && touch.rawY > height * 0.6) {
+        // Shooting Drag Start (backcourt zone)
+        if (p === 1 && touch.rawY > height * 0.70) {
           this.dragStartP1 = { x: touch.rawX, y: touch.rawY };
           this.dragCurrentP1 = { x: touch.rawX, y: touch.rawY };
-        } else if (p === 2 && touch.rawY < height * 0.4) {
+        } else if (p === 2 && touch.rawY < height * 0.30) {
           this.dragStartP2 = { x: touch.rawX, y: touch.rawY };
           this.dragCurrentP2 = { x: touch.rawX, y: touch.rawY };
         }

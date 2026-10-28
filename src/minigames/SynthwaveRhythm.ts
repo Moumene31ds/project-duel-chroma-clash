@@ -80,7 +80,7 @@ export class SynthwaveRhythm extends BaseMinigame {
     this.notes.push({ id: this.nextId++, player, lane, y: startY, speed: vy, hit: false, missed: false });
   }
 
-  public updateGame(dt: number, _width: number, height: number): void {
+  public updateGame(dt: number, width: number, height: number): void {
     this.beatTime += dt;
     this.spawnTimerP1 -= dt;
     this.spawnTimerP2 -= dt;
@@ -104,7 +104,7 @@ export class SynthwaveRhythm extends BaseMinigame {
       void dist;
     }
 
-    this.handleTaps(height);
+    this.handleTaps(width, height);
 
     if (this.progression.getGameMode() === 'vs_ai') {
       this.botTimer -= dt;
@@ -115,22 +115,22 @@ export class SynthwaveRhythm extends BaseMinigame {
       }
     }
 
-    if (this.p1Score >= this.targetScore) this.completeMatch(1, _width, height);
-    else if (this.p2Score >= this.targetScore) this.completeMatch(2, _width, height);
+    if (this.p1Score >= this.targetScore) this.completeMatch(1, width, height);
+    else if (this.p2Score >= this.targetScore) this.completeMatch(2, width, height);
   }
 
-  private laneFromNormX(normX: number): number {
+  public static laneFromNormX(normX: number): number {
     return Math.max(0, Math.min(3, Math.floor(normX * 4)));
   }
 
-  private handleTaps(height: number): void {
+  private handleTaps(width: number, height: number): void {
     const touches = this.input.getTouches();
     for (const t of touches) {
       if (t.phase !== 'began') continue;
       const player = t.rawY > height * 0.5 ? 1 : 2;
       // ignore bot side taps when vs_ai (bot handles itself)
       if (player === 2 && this.progression.getGameMode() === 'vs_ai') continue;
-      const lane = this.laneFromNormX(t.normX);
+      const lane = Math.max(0, Math.min(3, Math.floor(((t.rawX - 20) / Math.max(1, width - 40)) * 4)));
       this.attemptHit(player as PlayerIndex, lane, height);
     }
     // keyboard fallback

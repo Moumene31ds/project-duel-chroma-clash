@@ -164,7 +164,7 @@ export class MemoryMatrix extends BaseMinigame {
         if (nodeId !== null) {
           this.processPlayerTap(1, nodeId, width, height);
         }
-      } else if (touch.player === 2 && !this.p2Error && this.progression.getGameMode() === 'local_2p') {
+      } else if (touch.player === 2 && !this.p2Error && this.progression.getGameMode() !== 'vs_ai') {
         const nodeId = this.getNodeAtTouch(touch.rawX, touch.rawY, 2, width, height);
         if (nodeId !== null) {
           this.processPlayerTap(2, nodeId, width, height);
@@ -240,33 +240,39 @@ export class MemoryMatrix extends BaseMinigame {
   }
 
   private getNodeAtTouch(rawX: number, rawY: number, player: PlayerIndex, width: number, height: number): number | null {
-    const margin = 24;
-    const gridDim = Math.min(width - margin * 2, 260);
-    const cellSize = gridDim / 3;
+    const gridDim = 250;
+    const half = gridDim / 2;
+    const cellSize = (gridDim - 16) / 3;
+    const cx = width / 2;
+    const cy = player === 1 ? height - 170 : 170;
 
-    let gridOriginX = (width - gridDim) / 2;
-    let gridOriginY = player === 1 ? height - gridDim - 40 : 40;
+    let dx = rawX - cx;
+    let dy = rawY - cy;
 
-    if (rawX < gridOriginX || rawX > gridOriginX + gridDim || rawY < gridOriginY || rawY > gridOriginY + gridDim) {
+    if (Math.abs(dx) > half + 10 || Math.abs(dy) > half + 10) {
       return null;
     }
 
-    let relX = rawX - gridOriginX;
-    let relY = rawY - gridOriginY;
-
     // P2 is inverted 180°
     if (player === 2) {
-      relX = gridDim - relX;
-      relY = gridDim - relY;
+      dx = -dx;
+      dy = -dy;
     }
 
-    const col = Math.floor(relX / cellSize);
-    const row = Math.floor(relY / cellSize);
+    let closestId: number | null = null;
+    let minD = cellSize * 0.6;
 
-    if (col >= 0 && col < 3 && row >= 0 && row < 3) {
-      return row * 3 + col;
+    for (const node of this.NODES) {
+      const nx = -half + 8 + node.col * (cellSize + 4) + cellSize / 2;
+      const ny = -half + 8 + node.row * (cellSize + 4) + cellSize / 2;
+      const dist = Math.hypot(dx - nx, dy - ny);
+      if (dist < minD) {
+        minD = dist;
+        closestId = node.id;
+      }
     }
-    return null;
+
+    return closestId;
   }
 
   public renderGame(ctx: CanvasRenderingContext2D, width: number, height: number): void {
