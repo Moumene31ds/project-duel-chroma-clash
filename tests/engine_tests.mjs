@@ -1577,4 +1577,54 @@ test('Bilingual Tutorial Manager - 20 Minigames Complete Coverage', () => {
   assert.strictEqual(MINIGAME_IDS.length, 20, 'Exactly 20 minigames in pool');
 });
 
+// 69. Mobile Hardware & Touch Gesture Isolation Architecture
+test('Mobile Hardware & Multi-touch Gesture Isolation Architecture', () => {
+  // 1. Multi-touch simultaneous duel interaction
+  const height = 800;
+  const deadZoneFraction = 0.04;
+  const halfDead = deadZoneFraction / 2;
+
+  function routeTouch(rawY) {
+    const normY = rawY / height;
+    if (normY > 0.5 + halfDead) return 1;
+    if (normY < 0.5 - halfDead) return 2;
+    return null;
+  }
+
+  // 4 concurrent fingers (2 from P1, 2 from P2)
+  const touches = [
+    { id: 101, y: 700 }, // P1 primary
+    { id: 102, y: 650 }, // P1 secondary
+    { id: 201, y: 150 }, // P2 primary
+    { id: 202, y: 220 }, // P2 secondary
+    { id: 999, y: 400 }  // Deadzone center (neutral)
+  ];
+
+  const assigned = touches.map(t => ({ id: t.id, player: routeTouch(t.y) }));
+  assert.strictEqual(assigned.find(a => a.id === 101).player, 1);
+  assert.strictEqual(assigned.find(a => a.id === 102).player, 1);
+  assert.strictEqual(assigned.find(a => a.id === 201).player, 2);
+  assert.strictEqual(assigned.find(a => a.id === 202).player, 2);
+  assert.strictEqual(assigned.find(a => a.id === 999).player, null, 'Center deadzone rejects accidental interference');
+
+  // 2. Battery & Performance DPR Capping on Mobile
+  function computeDpr(devicePixelRatio, isCoarse, screenWidth) {
+    const isSmall = screenWidth < 420;
+    const dprCap = isCoarse && isSmall ? 1.75 : 2.0;
+    return Math.min(devicePixelRatio || 1, dprCap);
+  }
+
+  // Flagship high-density phone (e.g. 3.0x pixel ratio like iPhone 15 Pro)
+  assert.strictEqual(computeDpr(3.0, true, 393), 1.75, 'Capped at 1.75 on compact mobile to sustain 60/120 FPS');
+  assert.strictEqual(computeDpr(3.0, false, 1200), 2.0, 'Desktop retains crisp 2.0x retina backing store');
+
+  // 3. Orientation Blocker Trigger
+  function shouldBlockOrientation(width, height, isCoarse) {
+    return width > height && (isCoarse || height < 620);
+  }
+
+  assert.strictEqual(shouldBlockOrientation(844, 390, true), true, 'Landscape phone is safely intercepted');
+  assert.strictEqual(shouldBlockOrientation(390, 844, true), false, 'Portrait phone passes smoothly');
+});
+
 

@@ -1,7 +1,7 @@
 {
   "name": "PROJECT DUEL: Chroma Clash",
   "short_name": "ProjectDuel",
-  "description": "1v1 Local Multiplayer & AI Cyber Duel Arena with 18 Legendary Minigames",
+  "description": "1v1 Local Multiplayer & AI Cyber Duel Arena with 20 Legendary Minigames",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

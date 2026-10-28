@@ -305,8 +305,8 @@ body.theme-day .phone-home-bar {
   z-index: 100;
 }
 
-/* Native Mobile Device Rules (Clean edge-to-edge on actual phones) */
-@media (max-width: 520px) {
+/* Native Mobile Device Rules (Clean edge-to-edge on actual phones & portrait touch devices) */
+@media (max-width: 520px), (hover: none) and (pointer: coarse) and (max-width: 820px) {
   html, body {
     align-items: stretch;
   }
@@ -1817,6 +1817,36 @@ body.lang-ar .rivalry-ticker {
   width: min(428px, 100dvw);
   height: min(890px, 100vh);
   height: min(890px, 100dvh);
+}
+
+.phone-chassis.chassis-phone {
+  width: min(428px, 100vw);
+  width: min(428px, 100dvw);
+  height: min(890px, 100vh);
+  height: min(890px, 100dvh);
+}
+
+.phone-chassis.chassis-tablet {
+  width: min(720px, 100vw);
+  width: min(720px, 100dvw);
+  height: min(960px, 100vh);
+  height: min(960px, 100dvh);
+  border-radius: 36px;
+}
+
+.phone-chassis.chassis-fullscreen {
+  width: 100vw !important;
+  width: 100dvw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.phone-chassis.chassis-fullscreen .phone-island,
+.phone-chassis.chassis-fullscreen .phone-home-bar {
+  display: none !important;
 }
 
 /* =========================================
